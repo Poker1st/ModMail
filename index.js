@@ -153,4 +153,4 @@ client.on('message', async message => {
 })
  
 
-client.login(""); //Currently this is set to testing bot. MUST BE CHANGED IF EDITING FOR KANEKI!
+client.login(""); //Add the token to your bot user here

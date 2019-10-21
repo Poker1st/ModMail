@@ -3,8 +3,8 @@ const Discord = require('discord.js');
  
 // Configure Packages
 const client = new Discord.Client();
-const prefix = ''; // If you would like to add commands to the bot set this here
-const ownerID = ''; // Set your ID in here. Do it by copy and pasting it through discord.
+const prefix = 'ab!'; // If you would like to add commands to the bot set this here
+const ownerID = '503913778077892618'; // Set your ID in here. Do it by copy and pasting it through discord.
 const active = new Map();
 
 client.on("error", (e) => console.error(e));
@@ -48,7 +48,7 @@ client.on('message', async message => {
         if (!active || !found) {
             // Create Support Channel.
             active = {};
-            let modRoles = guild.roles.find("name", ""); // Find the Mod/Admin roles so only Admin/Mods will see the tickets. Add it in the quotes
+            let modRoles = guild.roles.find("name","@" + "owner"); // Find the Mod/Admin roles so only Admin/Mods will see the tickets. Add it in the quotes
             let everyone = guild.roles.find("name","@" + "everyone");
             let bot = guild.roles.find("name","Bot");
             channel = await guild.createChannel(`${message.author.username}-${message.author.discriminator}`);
@@ -153,4 +153,4 @@ client.on('message', async message => {
 })
  
 
-client.login(""); //Add the token to your bot user here
+client.login("NjM1NDIzOTc4MTQzNDgxODU2.Xa2Q6g.DeBQI8dfCts56xZZEPrELj1ATYg"); //Add the token to your bot user here

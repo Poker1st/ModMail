@@ -72,7 +72,7 @@ client.on('message', async message => {
   const messageReception = new MessageEmbed()
   .setColor('36393E')
   .setAuthor(message.author.tag, message.author.displayAvatarURL()) 
-  .setThumbnail(`attachment://verified.gif`)
+  .setThumbnail(``) //insert gif or picture with a green checkmark 
 	
   //Check if message is in a direct message
   if (message.guild == null) {

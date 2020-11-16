@@ -44,9 +44,8 @@ client.on('ready', () => {
  '----------------'  '----------------'  '----------------'  '----------------'  '----------------'                     
  */
 
-function isAdmin(client, message, statement) { 
-   const userRole = message.member.roles.cache;
-   if(userRole.has(modRole)) {
+function isAdmin(client, message, statement) {  
+   if(message.member.roles.cache.has(modROLE)) {
      return true;
    } else {
       if (statement == true) {

@@ -4,9 +4,12 @@ const { MessageEmbed } = require('discord.js');
 
 // Configure Packages
 const client = new Discord.Client();
-const prefix = ''; // If you would like to add commands to the bot set this here
-const ownerID = ''; // Set your ID in here. Do it by copy and pasting it through discord. 
 const db = require('quick.db');
+const prefix = ''; // If you would like to add commands to the bot set this here
+const modROLE = ''; // Set your MOD role ID in here. Do it by copy and pasting it through discord. 
+const everyone = ''; //set your @everyone role ID in here.
+const auditLogs = ''; //set your Audit Logs channel ID here -- make sure it's not in the modmail category
+const guildID = ''; //set your guild's server ID here 
 
 client.on("error", (e) => console.error(e));
 client.on("warn", (e) => console.warn(e));
@@ -27,125 +30,136 @@ client.on('ready', () => {
    console.log(`I have been removed from: ${guild.name} (id: ${guild.id})`);
  });
 
-// Listener Events
-client.on('message', async message => {  
-    
-    // Check if Message is in a DM
-    if (message.guild === null) {
-        // Fetch Activity Info
-        let active = await db.fetch(`support_${message.author.id}`);
-        let guild = client.guilds.cache.get(''); // Your Server ID
-        let channel, found = true;
-        try {
-            if (active) client.channels.get(active.channelID).guild;
-        } catch(e) {
-            found = false;
-        }
-        if (!active || !found) {
-            // Create Support Channel.
-            active = {};
-            let modRoles = guild.roles.cache.find(r => r.name == ""); // Find the Mod/Admin roles so only Admin/Mods will see the tickets. Add it in the quotes
-            let everyone = guild.roles.cache.find(r => r.name == "@everyone");
-            let bot = guild.roles.cache.find(r => r.name == "Bot");
-            channel = await guild.createChannel(`${message.author.username}-${message.author.discriminator}`);
-                channel.setParent(''); // Management Category ID
-                channel.setTopic(`_complete to close the Ticket | ModMail for ${message.author.tag} | ID: ${message.author.id}`);
-                channel.overwritePermissions(modRoles, {
-                    VIEW_CHANNEL: true,
-                    SEND_MESSAGES: true,
-                    MANAGE_CHANNELS: true
-                });
-                channel.overwritePermissions(everyone, {
-                    VIEW_CHANNEL: false,
-                });
-                channel.overwritePermissions(bot, {
-                    VIEW_CHANNEL: true,
-                    SEND_MESSAGES: true,
-                    MANAGE_CHANNELS: true
-                }); // This will set the permissions so only Staff will see the ticket.
- 
-            const newChannel = new MessageEmbed()
-                .setColor('36393E')
-                .setAuthor(message.author.tag, message.author.displayAvatarURL)
-                .setFooter('ModMail Ticket Created')
-                .addField('User', message.author)
-                .addField('ID', message.author.id);
-            await channel.send(newChannel);
-            
-            const newTicket = new MessageEmbed()
-                .setColor('36393E')
-                .setAuthor(`Hello, ${message.author.tag}`, message.author.displayAvatarURL)
-                .setFooter('ModMail Ticket Created');
-                
-            await message.author.send(newTicket);
-            
-            // Update Active Data
-            active.channelID = channel.id;
-            active.targetID = message.author.id;
-        }
+/*
+ .----------------.  .----------------.  .----------------.  .----------------.  .-----------------.                    
+| .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |                    
+| |      __      | || |  ________    | || | ____    ____ | || |     _____    | || | ____  _____  | |                    
+| |     /  \     | || | |_   ___ `.  | || ||_   \  /   _|| || |    |_   _|   | || ||_   \|_   _| | |                    
+| |    / /\ \    | || |   | |   `. \ | || |  |   \/   |  | || |      | |     | || |  |   \ | |   | |                    
+| |   / ____ \   | || |   | |    | | | || |  | |\  /| |  | || |      | |     | || |  | |\ \| |   | |                    
+| | _/ /    \ \_ | || |  _| |___.' / | || | _| |_\/_| |_ | || |     _| |_    | || | _| |_\   |_  | |                    
+| ||____|  |____|| || | |________.'  | || ||_____||_____|| || |    |_____|   | || ||_____|\____| | |                    
+| |              | || |              | || |              | || |              | || |              | |                    
+| '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |                    
+ '----------------'  '----------------'  '----------------'  '----------------'  '----------------'                     
+ */
+
+function isAdmin(client, message, statement) { 
+   const userRole = message.member.roles.cache;
+   if(userRole.has(modRole)) {
+     return true;
+   } else {
+      if (statement == true) {
+       message.reply({ embed: { description: `You don't have the following role: \`MOD\``, color: '36393E'}}); 
+       return false;
+      }
+   }
+}
+
+client.on('message', async message => { 
+   // Return Statements
+  if (!message.content.startsWith(prefix) && message.channel.type != "dm" || message.author.bot) return; // If the message doesn't start with the prefix or is a bot, exit the code.
+
+/*
+===============================================   
+ |  \/  |         | |               (_) | 
+ | \  / | ___   __| |_ __ ___   __ _ _| | 
+ | |\/| |/ _ \ / _` | '_ ` _ \ / _` | | | 
+ | |  | | (_) | (_| | | | | | | (_| | | | 
+ |_|  |_|\___/ \__,_|_| |_| |_|\__,_|_|_| 
+=============================================== 
+*/
+
+  const messageReception = new MessageEmbed()
+  .setColor('36393E')
+  .setAuthor(message.author.tag, message.author.displayAvatarURL()) 
+  .setThumbnail(`attachment://verified.gif`)
+	
+  //Check if message is in a direct message
+  if (message.guild == null) {
+      let active = await db.fetch(`support_${message.author.id}`);
+      let guild = client.guilds.cache.get(guildID);
+      let channel, found = true;
+
+      try { 
+        if (active) client.channels.cache.get(active.channelID).guild;
+      } catch (e) {
+        found = false;
+      }
+
+      if (!active || !found) {
+        //create support channel for new respondee
+        active = {};
+        channel = await guild.channels.create(`${message.author.username}-${message.author.discriminator}`);     
+        channel.setParent(''); //set a support ticket channel category ID here
+        channel.setTopic(`Use **${prefix}close-ticket** to close the Ticket | ModMail for <@${message.author.id}>`);
+        channel.overwritePermissions([ 
+          {
+            id: modROLE, //set MOD role id here
+            allow: ['VIEW_CHANNEL', 'SEND_MESSAGES', 'ADD_REACTIONS', 'READ_MESSAGE_HISTORY', 'MANAGE_CHANNELS', 'MANAGE_MESSAGES', 'ADD_REACTIONS', 'USE_EXTERNAL_EMOJIS']
+          },
+          {
+            id: message.author.id,
+            allow: ['VIEW_CHANNEL', 'SEND_MESSAGES', 'ADD_REACTIONS', 'READ_MESSAGE_HISTORY', 'EMBED_LINKS', 'ATTACH_FILES', 'USE_EXTERNAL_EMOJIS']
+          },
+          {
+            id: everyone, //set @EVERYONE role id here
+            deny: ['VIEW_CHANNEL']
+          }
+        ]);
         
-        channel = client.channels.cache.get(active.channelID);
-        const dm = new MessageEmbed()
-            .setColor('36393E')
-            .setAuthor(`Thank you, ${message.author.tag}`, message.author.displayAvatarURL)
-            .setFooter(`Your message has been sent -- A staff member will be in contact soon.`);
-            
-        await message.author.send(dm);
+        messageReception
+        .setTitle(`ModMail Ticket Created`)
+        .setDescription(`Hello, I've opened up a new ticket for you! Our staff members ` +
+        `will respond shortly. If you need to add to your ticket, plug away again!`)
+        .setFooter(`ModMail Ticket Created -- ${message.author.tag}`)
         
-        const embed = new MessageEmbed()
-            .setColor('36393E')
-            .setAuthor(message.author.tag, message.author.displayAvatarURL)
-            .setDescription(message.content)
-            .setFooter(`Message Recieved -- ${message.author.tag}`);
-            
-        await channel.send(embed);
-        db.set(`support_${message.author.id}`, active);
-        db.set(`supportChannel_${channel.id}`, message.author.id);
-        return;
-    }
+        await message.author.send(`<@${message.author.id}>`, { embed: messageReception });
+        
+        // Update Active Data
+        active.channelID = channel.id;
+        active.targetID =  message.author.id;
+      }
+
+    channel = client.channels.cache.get(active.channelID);
+
+    messageReception //fires for newly created and exisiting tickets 
+    .setTitle(`Modmail Ticket Sent!`)
+    .setDescription(`Your new content has been sent!`)
+    .setFooter(`ModMail Ticket Received -- ${message.author.tag}`)
+    await message.author.send(`<@${message.author.id}>`, { embed: messageReception });
+
+    messageReception.setDescription(`**${message.content}**`) //appends `.setDescription()` method to the embed that will be sent to admins
+    await channel.send(`<@${message.author.id}>`, { embed: messageReception });
+
+    db.set(`support_${message.author.id}`, active);
+    db.set(`supportChannel_${channel.id}`, message.author.id);
+    return;
+  }
     
     let support = await db.fetch(`supportChannel_${message.channel.id}`);
     if (support) {
         support = await db.fetch(`support_${support}`);
         let supportUser = client.users.cache.get(support.targetID);
-        if (!supportUser) return message.channel.delete();
+        if (!supportUser) return message.channel.delete(); 
         
-        // !complete command
-        if (message.content.toLowerCase() == "${prefix}complete") {
-            const complete = new MessageEmbed()
-                .setColor('36393E')
-                .setAuthor(`Hey, ${supportUser.tag}`, supportUser.displayAvatarURL)
-                .setFooter('Ticket Closed')
-                .setDescription('*Your ModMail has been marked as **Complete**. If you wish to reopen this, or create a new one, please send a message to the bot.*');
-                
-            supportUser.send(complete);
-            message.channel.delete()
-                .then(console.log(`Support for ${supportUser.tag} has been closed.`))
-                .catch(console.error);
+        if(isAdmin(client, message, true)) { //use isAdmin function to prevent non-mods from closing the ticket! :)
+          if (message.content == `${prefix}close-ticket`) {
+            messageReception 
+              .setTitle(`ModMail Ticket Resolved`)
+              .setAuthor(supportUser.tag, supportUser.displayAvatarURL())
+              .setDescription(`*Your ModMail has been marked as **Complete**. If you wish to create a new one, please send a message to the bot.*`)
+              .setFooter(`ModMail Ticket Closed -- ${supportUser.tag}`)
+            supportUser.send(`<@${supportUser.id}>`, { embed: messageReception });
+
+            message.guild.channels.cache.get(auditlogs).send(messageReception);
+            message.channel.delete();
             return db.delete(`support_${support.targetID}`);
+          } /* else if {
+             - So here, you could make additional commands to archive, log, and/or re-open tickets! It's yours to make! :)
+          } */
         }
-        const embed = new MessageEmbed()
-            .setColor('36393E')
-            .setAuthor(message.author.tag, message.author.displayAvatarURL)
-            .setFooter(`Message Received`)
-            .setDescription(message.content);
-            
-        client.users.cache.get(support.targetID).send(embed);
-        message.delete({timeout: 1000});
-        embed.setFooter(`Message Sent -- ${supportUser.tag}`).setDescription(message.content);
-        return message.channel.send(embed);
-    }
-
-
-  // Variables
-  let msg = message.content.toUpperCase(); // This takes the message.content, and turns it all uppercase.
-  let sender = message.author; // This variable holds the message's author.
-  let args = message.content.slice(prefix.length).trim().split(' '); // This variable takes the message.content, slices off the prefix from the front, then trims the blank spaces on the side, and turns it into an array by separating it by spaces.
-  let cmd = args.shift().toLowerCase(); // This variable holds the first item from the args array, which is taken off of the args array and turned into lowercase.
- 
-  // Return Statements
-  if (!msg.startsWith(prefix) || msg.author.bot) return; // If the message doesn't start with the prefix, exit the code.
- 
+    } 
 })
  
 

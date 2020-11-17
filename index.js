@@ -70,14 +70,22 @@ client.on('message', async message => {
 */
 
   const messageReception = new MessageEmbed()
-  .setColor('36393E')
-  .setAuthor(message.author.tag, message.author.displayAvatarURL()) 
-  .setThumbnail(``) //insert gif or picture with a green checkmark 
-	
-  //Check if message is in a direct message
-  if (message.guild == null) {
+  .setColor(client.config.school_color)
+  .setAuthor(message.author.tag, message.author.displayAvatarURL())
+  .attachFiles([`./assets/verified.gif`])
+  .setThumbnail(`attachment://verified.gif`) 
+  
+  if (message.guild == null && !message.mentions.has(client.user)) {
+        return message.reply({ embed: { description: `To open a ticket, mention <@${client.user.id}> and type your message!`, color: client.config.school_color}});
+  }
+
+  //Check if message is in a direct message and mentions bot
+  if (message.channel.type == "dm" && message.mentions.has(client.user)) { 
+    let userTicketContent = message.content.split(' ').slice(1).join(' ');
+
+    if (userTicketContent.length > 1) {
       let active = await db.fetch(`support_${message.author.id}`);
-      let guild = client.guilds.cache.get(guildID);
+      let guild = client.guilds.cache.get(client.config.verification.guildID);
       let channel, found = true;
 
       try { 
@@ -89,12 +97,13 @@ client.on('message', async message => {
       if (!active || !found) {
         //create support channel for new respondee
         active = {};
-        channel = await guild.channels.create(`${message.author.username}-${message.author.discriminator}`);     
-        channel.setParent(''); //set a support ticket channel category ID here
-        channel.setTopic(`Use **${prefix}close-ticket** to close the Ticket | ModMail for <@${message.author.id}>`);
+	const nickname = client.guilds.cache.get(guildID).member(message.author).displayName;
+        channel = await guild.channels.create(`${nickname}-${message.author.discriminator}`);     
+        channel.setParent(client.config.channels.supportTicketsCategory); //sync text channel to category permissions
+        channel.setTopic(`Use **${client.config.prefix}close-ticket** to close the Ticket | ModMail for <@${message.author.id}>`);
         channel.overwritePermissions([ 
           {
-            id: modROLE, //set MOD role id here
+            id: client.config.serverRoles.mod,
             allow: ['VIEW_CHANNEL', 'SEND_MESSAGES', 'ADD_REACTIONS', 'READ_MESSAGE_HISTORY', 'MANAGE_CHANNELS', 'MANAGE_MESSAGES', 'ADD_REACTIONS', 'USE_EXTERNAL_EMOJIS']
           },
           {
@@ -102,7 +111,7 @@ client.on('message', async message => {
             allow: ['VIEW_CHANNEL', 'SEND_MESSAGES', 'ADD_REACTIONS', 'READ_MESSAGE_HISTORY', 'EMBED_LINKS', 'ATTACH_FILES', 'USE_EXTERNAL_EMOJIS']
           },
           {
-            id: everyone, //set @EVERYONE role id here
+            id: client.config.serverRoles.everyone,
             deny: ['VIEW_CHANNEL']
           }
         ]);
@@ -120,46 +129,43 @@ client.on('message', async message => {
         active.targetID =  message.author.id;
       }
 
-    channel = client.channels.cache.get(active.channelID);
+      channel = client.channels.cache.get(active.channelID);
 
-    messageReception //fires for newly created and exisiting tickets 
-    .setTitle(`Modmail Ticket Sent!`)
-    .setDescription(`Your new content has been sent!`)
-    .setFooter(`ModMail Ticket Received -- ${message.author.tag}`)
-    await message.author.send(`<@${message.author.id}>`, { embed: messageReception });
+      messageReception //fires for newly created and existing tickets 
+      .setTitle(`Modmail Ticket Sent!`)
+      .setDescription(`Your new content has been sent!`)
+      .setFooter(`ModMail Ticket Received -- ${message.author.tag}`)
+      await message.author.send(`<@${message.author.id}>`, { embed: messageReception });
 
-    messageReception.setDescription(`**${message.content}**`) //appends `.setDescription()` method to the embed that will be sent to admins
-    await channel.send(`<@${message.author.id}>`, { embed: messageReception });
+      messageReception.setDescription(`**${userTicketContent}**`) //appends `.setDescription()` method to the embed that will be sent to admins
+      await channel.send(`<@${message.author.id}>`, { embed: messageReception });
 
-    db.set(`support_${message.author.id}`, active);
-    db.set(`supportChannel_${channel.id}`, message.author.id);
-    return;
-  }
-    
-    let support = await db.fetch(`supportChannel_${message.channel.id}`);
-    if (support) {
-        support = await db.fetch(`support_${support}`);
-        let supportUser = client.users.cache.get(support.targetID);
-        if (!supportUser) return message.channel.delete(); 
-        
-        if(isAdmin(client, message, true)) { //use isAdmin function to prevent non-mods from closing the ticket! :)
-          if (message.content == `${prefix}close-ticket`) {
-            messageReception 
-              .setTitle(`ModMail Ticket Resolved`)
-              .setAuthor(supportUser.tag, supportUser.displayAvatarURL())
-              .setDescription(`*Your ModMail has been marked as **Complete**. If you wish to create a new one, please send a message to the bot.*`)
-              .setFooter(`ModMail Ticket Closed -- ${supportUser.tag}`)
-            supportUser.send(`<@${supportUser.id}>`, { embed: messageReception });
-
-            message.guild.channels.cache.get(auditlogs).send(messageReception);
-            message.channel.delete();
-            return db.delete(`support_${support.targetID}`);
-          } /* else if {
-             - So here, you could make additional commands to archive, log, and/or re-open tickets! It's yours to make! :)
-          } */
-        }
+      db.set(`support_${message.author.id}`, active);
+      db.set(`supportChannel_${channel.id}`, message.author.id);
+      return;
     } 
-})
- 
+  }
+  
+  let support = await db.fetch(`supportChannel_${message.channel.id}`);
+  if (support) {
+    support = await db.fetch(`support_${support}`);
+    let supportUser = client.users.cache.get(support.targetID);
+    if (!supportUser) return message.channel.delete(); 
+    
+    if(isAdmin(client, message, true)) {
+      if (message.content == `${client.config.prefix}close-ticket`) {
+        messageReception 
+          .setTitle(`ModMail Ticket Resolved`)
+          .setAuthor(supportUser.tag, supportUser.displayAvatarURL())
+          .setDescription(`*Your ModMail has been marked as **Complete**. If you wish to create a new one, please send a message to the bot.*`)
+          .setFooter(`ModMail Ticket Closed -- ${supportUser.tag}`)
+        supportUser.send(`<@${supportUser.id}>`, { embed: messageReception });
+
+        message.guild.channels.cache.get(client.config.channels.auditlogs).send(messageReception);
+        message.channel.delete();
+        return db.delete(`support_${support.targetID}`);
+      } 
+    }
+  }   
 
 client.login(""); //Add the token to your bot user here
